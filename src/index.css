@@ -1,0 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300..700&family=Nunito:ital,wght@0,200..1000;1,200..1000&family=Inter:wght@400;600;700&family=Space+Grotesk:wght@400;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;700&family=Oswald:wght@400;700&family=Cinzel:wght@400;700&family=VT323&family=Dancing+Script:wght@400;700&family=Pacifico&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Nunito", "Fredoka", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fredoka", "Nunito", sans-serif;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
+.animate-marquee {
+  display: inline-block;
+  white-space: nowrap;
+  animation: marquee 5s linear infinite;
+}
+
+
+@keyframes gentle-shake {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(-3px, 3px) rotate(-1deg); }
+  50% { transform: translate(3px, -3px) rotate(1deg); }
+  75% { transform: translate(-3px, -3px) rotate(-1deg); }
+}
+.animate-gentle-shake {
+  animation: gentle-shake 0.25s ease-in-out infinite;
+}
+
+@keyframes grid-move {
+  0% { background-position: 0px 0px; }
+  100% { background-position: 30px 30px; }
+}
+
+.bg-blueprint-pattern {
+  background-color: #0d0a1c;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.15) 2px, transparent 2px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.15) 2px, transparent 2px);
+  background-size: 30px 30px;
+  animation: grid-move 2s linear infinite;
+}

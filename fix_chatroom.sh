@@ -1,0 +1,8 @@
+#!/bin/bash
+sed -i 's/const mapped: any = { ...updated };/const mapped: any = {};\n            if (updated.username !== undefined) mapped.username = updated.username;\n            if (updated.age !== undefined) mapped.age = updated.age;\n            if (updated.gender !== undefined) mapped.gender = updated.gender;\n            if (updated.pfp !== undefined) mapped.pfp = updated.pfp;\n            if (updated.banner !== undefined) mapped.banner = updated.banner;\n            if (updated.aboutMe !== undefined) mapped.about_me = updated.aboutMe;\n            if (updated.mood !== undefined) mapped.mood = updated.mood;\n            if (updated.language !== undefined) mapped.language = updated.language;\n            if (updated.currentRoom !== undefined) mapped.current_room = updated.currentRoom;\n            if (updated.border !== undefined) mapped.border = updated.border;\n            if (updated.borderThickness !== undefined) mapped.border_thickness = updated.borderThickness;\n            if (updated.cardBg !== undefined) mapped.card_bg = updated.cardBg;\n            if (updated.likes !== undefined) mapped.likes = updated.likes;\n            if (updated.rank !== undefined) mapped.rank = updated.rank;\n            if (updated.effect !== undefined) mapped.effect = updated.effect;/g' src/components/ChatRoom.tsx
+
+sed -i 's/if (updated.aboutMe !== undefined) {/ /g' src/components/ChatRoom.tsx
+sed -i 's/mapped.about_me = updated.aboutMe;/ /g' src/components/ChatRoom.tsx
+sed -i 's/delete mapped.aboutMe;/ /g' src/components/ChatRoom.tsx
+sed -i 's/if (updated.likes !== undefined) {/ /g' src/components/ChatRoom.tsx
+sed -i 's/mapped.likes = updated.likes;/ /g' src/components/ChatRoom.tsx

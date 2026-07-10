@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Remix: Remix: Purplewave",
+  "description": "A high-fidelity recreation of a login and signup portal with a sleek, interactive purple theme, featuring realistic dropdowns and responsive modals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

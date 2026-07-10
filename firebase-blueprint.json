@@ -1,0 +1,96 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Represents a user account in the app",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "pfp": { "type": "string" },
+        "rank": { "type": "string" },
+        "coins": { "type": "integer" },
+        "rubies": { "type": "integer" },
+        "total_xp": { "type": "integer" },
+        "weekly_xp": { "type": "integer" },
+        "monthly_xp": { "type": "integer" },
+        "is_muted": { "type": "boolean" },
+        "is_kicked": { "type": "boolean" },
+        "custom_profile_enabled": { "type": "boolean" }
+      },
+      "required": ["id", "username"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A message sent in the chat rooms",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "profile_id": { "type": "string" },
+        "text": { "type": "string" },
+        "image_url": { "type": "string" },
+        "created_at": { "type": "string" },
+        "room": { "type": "string" }
+      },
+      "required": ["id", "text", "room"]
+    },
+    "Presence": {
+      "title": "Presence",
+      "description": "Real-time user online presence",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "online_at": { "type": "string" },
+        "last_ping": { "type": "integer" }
+      },
+      "required": ["userId", "username"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "In-app system notifications for users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "target_id": { "type": "string" },
+        "message": { "type": "string" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["id", "target_id", "message"]
+    }
+  },
+  "firestore": {
+    "/profiles/{profileId}": {
+      "schema": "UserProfile",
+      "description": "User profiles collection"
+    },
+    "/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Chat messages collection"
+    },
+    "/presences/{presenceId}": {
+      "schema": "Presence",
+      "description": "User real-time presence tracking collection"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Notifications collection"
+    },
+    "/custom_ranks/{rankId}": {
+      "schema": "object",
+      "description": "Configurable user ranks collection"
+    },
+    "/announcements/{announcementId}": {
+      "schema": "object",
+      "description": "Staff/developer announcements collection"
+    },
+    "/profile_likes/{likeId}": {
+      "schema": "object",
+      "description": "Profile like tracking"
+    },
+    "/ratings/{ratingId}": {
+      "schema": "object",
+      "description": "User reviews and ratings"
+    }
+  }
+}

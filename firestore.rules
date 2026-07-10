@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper to check if the user is authenticated in Firebase
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Robust, flexible gate for all collections.
+    // Restricts read & write access to authenticated users only.
+    match /{document=**} {
+      allow read, write: if isSignedIn();
+    }
+  }
+}
