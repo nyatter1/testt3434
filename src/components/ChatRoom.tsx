@@ -439,7 +439,9 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
           chat_background: p.chat_background || "",
           custom_status: p.custom_status || "online",
           custom_profile_enabled: p.custom_profile_enabled,
-          profile_layout: p.profile_layout
+          profile_layout: p.profile_layout,
+          profile_locked: p.profile_locked,
+          profile_lock_count: p.profile_lock_count
         };
       }));
     }
@@ -632,6 +634,8 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
       custom_status: p.custom_status || "online",
       custom_profile_enabled: p.custom_profile_enabled,
       profile_layout: p.profile_layout,
+      profile_locked: p.profile_locked,
+      profile_lock_count: p.profile_lock_count,
       isSystem: false,
       isCurrentUser: user && p.id === user.id,
       status: 'offline' // Overridden by computedUsers dynamically
@@ -2172,6 +2176,8 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
             if ('effect' in updated) mapped.effect = updated.effect;
             if ('custom_profile_enabled' in updated) mapped.custom_profile_enabled = updated.custom_profile_enabled;
             if ('profile_layout' in updated) mapped.profile_layout = updated.profile_layout;
+            if ('profile_locked' in updated) mapped.profile_locked = updated.profile_locked;
+            if ('profile_lock_count' in updated) mapped.profile_lock_count = updated.profile_lock_count;
             if ('coins' in updated) mapped.coins = updated.coins;
             if ('rubies' in updated) mapped.rubies = updated.rubies;
 

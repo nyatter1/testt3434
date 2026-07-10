@@ -1296,13 +1296,15 @@ export default function ProfileModal({
               </button>
             )}
 
-            <button 
-              onClick={() => { setIsShowingRatings(true); onView(); }}
-              className="w-full text-left px-4 py-3 text-sm text-purple-200 hover:bg-purple-950/50 flex items-center gap-3 transition-colors rounded-none"
-            >
-              <Star className="w-4 h-4 text-yellow-500 fill-current" />
-              {isOwnProfile ? "My ratings" : "Ratings"}
-            </button>
+            {(!targetUser.profile_locked || isOwnProfile) && (
+              <button 
+                onClick={() => { setIsShowingRatings(true); onView(); }}
+                className="w-full text-left px-4 py-3 text-sm text-purple-200 hover:bg-purple-950/50 flex items-center gap-3 transition-colors rounded-none"
+              >
+                <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                {isOwnProfile ? "My ratings" : "Ratings"}
+              </button>
+            )}
 
             <button 
               onClick={() => {
@@ -2588,8 +2590,17 @@ export default function ProfileModal({
               <h2 className="text-2xl font-black text-white flex items-center gap-2">
                 {targetUser.username}
               </h2>
-              {targetUser.mood && (
-                <p className="text-purple-400 text-xs italic font-medium mt-0.5">{targetUser.mood}</p>
+              {targetUser.profile_locked ? (
+                <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-500/20 border border-red-500/30 text-red-400 text-[10px] font-black uppercase tracking-widest shadow-[0_0_10px_rgba(239,68,68,0.15)] animate-pulse">
+                  <Lock className="w-3 h-3" />
+                  Locked
+                </div>
+              ) : (
+                <>
+                  {targetUser.mood && (
+                    <p className="text-purple-400 text-xs italic font-medium mt-0.5">{targetUser.mood}</p>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -2602,221 +2613,76 @@ export default function ProfileModal({
 
 
           {mode === "view" ? (
-            targetUser.custom_profile_enabled ? (
-              <div className="relative w-full h-[650px] bg-[#0c091b] overflow-y-auto overflow-x-hidden custom-scrollbar border border-purple-900/10 rounded-xl">
-                {(() => {
-                  const layout = targetUser.profile_layout || DEFAULT_LAYOUT;
-                  const bannerLayout = layout.banner || DEFAULT_LAYOUT.banner!;
-                  const pfpLayout = layout.pfp || DEFAULT_LAYOUT.pfp!;
-                  const usernameLayout = layout.username || DEFAULT_LAYOUT.username!;
-                  const infoGridLayout = layout.infoGrid || DEFAULT_LAYOUT.infoGrid!;
-                  const aboutMeLayout = layout.aboutMe || DEFAULT_LAYOUT.aboutMe!;
-
-                  return (
-                    <>
-                      {/* 1. Banner */}
-                      <div 
-                        className="absolute bg-purple-900/10 rounded-none overflow-hidden"
-                        style={{
-                          left: `${bannerLayout.x}px`,
-                          top: `${bannerLayout.y}px`,
-                          width: bannerLayout.width ? `${bannerLayout.width}px` : '100%',
-                          height: bannerLayout.height ? `${bannerLayout.height}px` : '160px',
-                          transform: `rotate(${bannerLayout.rotation || 0}deg) scale(${bannerLayout.scale || 1})`,
-                          transformOrigin: 'top left',
-                          zIndex: 1
-                        }}
-                      >
-                        {targetUser.banner ? (
-                          <img src={targetUser.banner} className="w-full h-full object-cover animate-in fade-in" alt="Banner" />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-purple-900/30 to-[#0d0a1c] flex items-center justify-center text-purple-500 text-xs font-black">No Banner</div>
-                        )}
-                      </div>
-
-                      {/* 2. PFP / Avatar */}
-                      <div 
-                        className="absolute animate-in zoom-in-50 duration-300"
-                        style={{
-                          left: `${pfpLayout.x}px`,
-                          top: `${pfpLayout.y}px`,
-                          width: pfpLayout.width ? `${pfpLayout.width}px` : '90px',
-                          height: pfpLayout.height ? `${pfpLayout.height}px` : '90px',
-                          transform: `rotate(${pfpLayout.rotation || 0}deg) scale(${pfpLayout.scale || 1})`,
-                          transformOrigin: 'top left',
-                          zIndex: 5
-                        }}
-                      >
-                        <div className="w-full h-full rounded-none border-4 border-[#0d0a1c] bg-[#161226] overflow-hidden shadow-2xl relative">
-                          <img src={targetUser.pfp} className="w-full h-full object-cover" alt={targetUser.username} />
-                        </div>
-                      </div>
-
-                      {/* 3. Username / Rank */}
-                      <div 
-                        className="absolute animate-in fade-in slide-in-from-bottom-2 duration-300"
-                        style={{
-                          left: `${usernameLayout.x}px`,
-                          top: `${usernameLayout.y}px`,
-                          width: usernameLayout.width ? `${usernameLayout.width}px` : 'auto',
-                          height: usernameLayout.height ? `${usernameLayout.height}px` : 'auto',
-                          transform: `rotate(${usernameLayout.rotation || 0}deg) scale(${usernameLayout.scale || 1})`,
-                          transformOrigin: 'top left',
-                          zIndex: 10
-                        }}
-                      >
-                        <div className="p-2 rounded-lg bg-[#16122a]/85 border border-purple-900/20 backdrop-blur-md shadow-lg shadow-black/40">
-                          <div className="flex items-center gap-1.5 mb-1 text-purple-200">
-                            <img src={finalRanksInfo[targetUser.rank]?.icon || finalRanksInfo['VIP'].icon} alt={targetUser.rank} className="h-4 object-contain" />
-                            <span className="text-[10px] font-black tracking-wider uppercase">
-                              {finalRanksInfo[targetUser.rank]?.name || targetUser.rank}
-                            </span>
-                          </div>
-                          <h2 className="text-sm font-black text-white leading-tight">
-                            {targetUser.username}
-                          </h2>
-                          {targetUser.mood && (
-                            <p className="text-purple-400 text-[10px] italic font-medium mt-0.5">{targetUser.mood}</p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* 4. Info Grid */}
-                      <div 
-                        className="absolute animate-in fade-in slide-in-from-bottom-4 duration-400"
-                        style={{
-                          left: `${infoGridLayout.x}px`,
-                          top: `${infoGridLayout.y}px`,
-                          width: infoGridLayout.width ? `${infoGridLayout.width}px` : '400px',
-                          height: infoGridLayout.height ? `${infoGridLayout.height}px` : '130px',
-                          transform: `rotate(${infoGridLayout.rotation || 0}deg) scale(${infoGridLayout.scale || 1})`,
-                          transformOrigin: 'top left',
-                          zIndex: 3
-                        }}
-                      >
-                        <div className="bg-[#16122a]/85 rounded-none p-4 border border-purple-900/20 w-full h-full overflow-hidden backdrop-blur-md shadow-lg shadow-black/40">
-                          <h3 className="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                            <Info className="w-3.5 h-3.5" />
-                            Information
-                          </h3>
-                          <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-[11px]">
-                            <div>
-                              <p className="text-[9px] text-purple-500 uppercase font-bold">Age</p>
-                              <p className="text-purple-100 font-medium">{targetUser.age}</p>
-                            </div>
-                            <div>
-                              <p className="text-[9px] text-purple-500 uppercase font-bold">Gender</p>
-                              <p className="text-purple-100 font-medium">{targetUser.gender}</p>
-                            </div>
-                            <div>
-                              <p className="text-[9px] text-purple-500 uppercase font-bold">Last Online</p>
-                              <p className="text-purple-100 font-medium">{targetUser.lastOnline || "Just now"}</p>
-                            </div>
-                            <div>
-                              <p className="text-[9px] text-purple-500 uppercase font-bold">Created</p>
-                              <p className="text-purple-100 font-medium">{targetUser.createdDate || "Today"}</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 5. About Me */}
-                      <div 
-                        className="absolute animate-in fade-in slide-in-from-bottom-6 duration-500"
-                        style={{
-                          left: `${aboutMeLayout.x}px`,
-                          top: `${aboutMeLayout.y}px`,
-                          width: aboutMeLayout.width ? `${aboutMeLayout.width}px` : '400px',
-                          height: aboutMeLayout.height ? `${aboutMeLayout.height}px` : '180px',
-                          transform: `rotate(${aboutMeLayout.rotation || 0}deg) scale(${aboutMeLayout.scale || 1})`,
-                          transformOrigin: 'top left',
-                          zIndex: 4
-                        }}
-                      >
-                        <div className="bg-[#16122a]/85 rounded-none p-4 border border-purple-900/20 w-full h-full overflow-y-auto custom-scrollbar backdrop-blur-md shadow-lg shadow-black/40">
-                          <div className="flex items-center justify-between mb-2">
-                            <h3 className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-1.5">
-                              <User className="w-3.5 h-3.5" />
-                              About me
-                            </h3>
-                            {targetUser.aboutMe && (
-                              <BackgroundMusicPlayer bioText={targetUser.aboutMe} />
-                            )}
-                          </div>
-                          {targetUser.aboutMe ? (
-                            <div className="space-y-3 text-xs">
-                              <BioContentRenderer text={targetUser.aboutMe} />
-                              <BioMediaRenderer text={targetUser.aboutMe} />
-                            </div>
-                          ) : (
-                            <p className="text-[10px] text-purple-200/40 italic font-medium">This user hasn't written anything yet.</p>
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  );
-                })()}
+            targetUser.profile_locked && !isOwnProfile ? (
+              <div className="flex flex-col items-center justify-center py-16 px-4 text-center animate-in fade-in duration-300">
+                <div className="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-4 text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.1)]">
+                  <Lock className="w-10 h-10 animate-pulse" />
+                </div>
+                <h3 className="text-lg font-black text-white uppercase tracking-wider mb-2">Profile Locked</h3>
+                <p className="text-xs text-purple-300 max-w-xs leading-relaxed">
+                  This user has locked their profile. All sections, including information, mood, age, gender, and about me details are hidden.
+                </p>
               </div>
             ) : (
               <div className="space-y-8">
-              {/* Info Grid */}
-              <div className="bg-[#16122a]/50 rounded-none p-6 border border-purple-900/20">
-                <h3 className="text-xs font-black text-purple-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                  <Info className="w-4 h-4" />
-                  User Information
-                </h3>
-                <div className="grid grid-cols-2 gap-y-6 gap-x-4">
-                  <div className="space-y-1">
-                    <p className="text-[10px] text-purple-500 uppercase font-bold tracking-wider">Age</p>
-                    <p className="text-sm text-purple-100 font-medium">{targetUser.age}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] text-purple-500 uppercase font-bold tracking-wider">Gender</p>
-                    <p className="text-sm text-purple-100 font-medium">{targetUser.gender}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] text-purple-500 uppercase font-bold tracking-wider">Last Online</p>
-                    <div className="flex items-center gap-1.5 text-sm text-purple-100 font-medium">
-                      <Clock className="w-3.5 h-3.5 text-emerald-500" />
-                      <span>{targetUser.lastOnline || "Just now"}</span>
+                {/* Info Grid */}
+                <div className="bg-[#16122a]/50 rounded-none p-6 border border-purple-900/20">
+                  <h3 className="text-xs font-black text-purple-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                    <Info className="w-4 h-4" />
+                    User Information
+                  </h3>
+                  <div className="grid grid-cols-2 gap-y-6 gap-x-4">
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-purple-500 uppercase font-bold tracking-wider">Age</p>
+                      <p className="text-sm text-purple-100 font-medium">{targetUser.age}</p>
                     </div>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] text-purple-500 uppercase font-bold tracking-wider">Created</p>
-                    <div className="flex items-center gap-1.5 text-sm text-purple-100 font-medium">
-                      <Calendar className="w-3.5 h-3.5 text-purple-400" />
-                      <span>{targetUser.createdDate || "Today"}</span>
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-purple-500 uppercase font-bold tracking-wider">Gender</p>
+                      <p className="text-sm text-purple-100 font-medium">{targetUser.gender}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-purple-500 uppercase font-bold tracking-wider">Last Online</p>
+                      <div className="flex items-center gap-1.5 text-sm text-purple-100 font-medium">
+                        <Clock className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>{targetUser.lastOnline || "Just now"}</span>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-purple-500 uppercase font-bold tracking-wider">Created</p>
+                      <div className="flex items-center gap-1.5 text-sm text-purple-100 font-medium">
+                        <Calendar className="w-3.5 h-3.5 text-purple-400" />
+                        <span>{targetUser.createdDate || "Today"}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* About Me */}
-              <div className="bg-[#16122a]/50 rounded-none p-6 border border-purple-900/20">
-                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                  <h3 className="text-xs font-black text-purple-400 uppercase tracking-widest flex items-center gap-2">
-                    <User className="w-4 h-4" />
-                    About me
-                  </h3>
-                  {/* Background Music player */}
-                  {targetUser.aboutMe && (
-                    <BackgroundMusicPlayer bioText={targetUser.aboutMe} />
+                {/* About Me */}
+                <div className="bg-[#16122a]/50 rounded-none p-6 border border-purple-900/20">
+                  <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                    <h3 className="text-xs font-black text-purple-400 uppercase tracking-widest flex items-center gap-2">
+                      <User className="w-4 h-4" />
+                      About me
+                    </h3>
+                    {/* Background Music player */}
+                    {targetUser.aboutMe && (
+                      <BackgroundMusicPlayer bioText={targetUser.aboutMe} />
+                    )}
+                  </div>
+                  
+                  {targetUser.aboutMe ? (
+                    <div className="space-y-4">
+                      <BioContentRenderer text={targetUser.aboutMe} />
+                      <BioMediaRenderer text={targetUser.aboutMe} />
+                    </div>
+                  ) : (
+                    <p className="text-sm text-purple-200/40 italic font-medium">
+                      This user hasn't written anything yet.
+                    </p>
                   )}
                 </div>
-                
-                {targetUser.aboutMe ? (
-                  <div className="space-y-4">
-                    <BioContentRenderer text={targetUser.aboutMe} />
-                    <BioMediaRenderer text={targetUser.aboutMe} />
-                  </div>
-                ) : (
-                  <p className="text-sm text-purple-200/40 italic font-medium">
-                    This user hasn't written anything yet.
-                  </p>
-                )}
               </div>
-            </div>
-          )
+            )
           ) : (
             <div>
               {/* Tab Switcher */}
@@ -2898,112 +2764,79 @@ export default function ProfileModal({
                 </div>
               ) : (
                 <div className="flex flex-col border-t border-b border-white/[0.05] divide-y divide-white/[0.05]">
-                  {!targetUser.custom_profile_enabled ? (
-                    <div className="p-4 bg-purple-950/20 border border-purple-500/10 rounded-xl my-2">
-                      <div className="flex items-center gap-3 mb-2">
-                        <Sparkles className="w-5 h-5 text-purple-400 shrink-0 animate-pulse" />
-                        <span className="text-sm font-black text-white uppercase tracking-wider">Profile Layout Editor</span>
-                      </div>
-                      <p className="text-xs text-purple-300 leading-relaxed mb-4">
-                        Unlock the power to fully drag, resize, rotate, and customize your profile layout elements!
-                      </p>
-                      
-                      <div className="flex items-center justify-between gap-2 mt-2">
-                        <div className="text-[10px] text-purple-400 font-bold">
-                          Current: <span className="text-amber-400 font-mono">{(currentUser.coins || 0).toLocaleString()} Coins</span> / <span className="text-rose-400 font-mono">{(currentUser.rubies || 0).toLocaleString()} Rubies</span>
-                        </div>
-                        <div className="flex gap-2">
+                  <div className="p-4 bg-purple-950/20 border border-purple-500/10 rounded-xl my-2">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Lock className="w-5 h-5 text-red-400 shrink-0" />
+                      <span className="text-sm font-black text-white uppercase tracking-wider">Profile Lock</span>
+                    </div>
+                    <p className="text-xs text-purple-300 leading-relaxed mb-4">
+                      Lock your profile so that others can only see your profile picture, username, and rank. Your age, gender, mood, and about me section will be completely hidden from everyone else, displaying a <strong>LOCKED</strong> badge.
+                    </p>
+
+                    {targetUser.profile_locked ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-3 bg-red-950/20 border border-red-500/20 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+                            <span className="text-xs font-bold text-red-400 uppercase tracking-wider">Profile is LOCKED</span>
+                          </div>
                           <button
                             type="button"
                             onClick={async () => {
+                              if (window.confirm("Are you sure you want to unlock your profile? Unlocking is free, but locking it again later will cost 1,500 Coins.")) {
+                                const updated = {
+                                  profile_locked: false,
+                                  // Increase lock count so next lock costs 1500
+                                  profile_lock_count: (targetUser.profile_lock_count || 0) + 1
+                                };
+                                await supabase.from('profiles').update(updated).eq('id', currentUser.id);
+                                onUpdate(updated);
+                              }
+                            }}
+                            className="px-3 py-1 rounded bg-zinc-800 text-white hover:bg-zinc-700 text-xs font-black uppercase transition-all cursor-pointer"
+                          >
+                            Unlock Profile (Free)
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-3">
+                        <div className="text-[10px] text-purple-400 font-bold">
+                          Current Balance: <span className="text-amber-400 font-mono">{(currentUser.coins || 0).toLocaleString()} Coins</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 mt-2">
+                          <span className="text-xs text-purple-300">
+                            Cost to Lock: <span className="text-amber-400 font-bold font-mono">{(targetUser.profile_lock_count && targetUser.profile_lock_count > 0) ? "1,500" : "1,000"} Coins</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const isReLock = (targetUser.profile_lock_count && targetUser.profile_lock_count > 0);
+                              const cost = isReLock ? 1500 : 1000;
                               const currentCoins = currentUser.coins || 0;
-                              if (currentCoins < 1000) {
-                                alert(`Insufficient Coins! You need 1,000 Coins but you only have ${currentCoins.toLocaleString()}. Chat more to earn coins!`);
+                              if (currentCoins < cost) {
+                                alert(`Insufficient Coins! You need ${cost.toLocaleString()} Coins to lock your profile, but you only have ${currentCoins.toLocaleString()}. Chat more to earn coins!`);
                                 return;
                               }
-                              if (window.confirm("Buy Profile Layout Editor for 1,000 Coins?")) {
-                                const newCoins = currentCoins - 1000;
-                                await supabase.from('profiles').update({
-                                  custom_profile_enabled: true,
+                              if (window.confirm(`Lock your profile for ${cost.toLocaleString()} Coins?`)) {
+                                const newCoins = currentCoins - cost;
+                                const updated = {
+                                  profile_locked: true,
                                   coins: newCoins
-                                }).eq('id', currentUser.id);
-                                onUpdate({ custom_profile_enabled: true, coins: newCoins });
-                                alert("Purchased successfully! You can now customize your layout.");
+                                };
+                                await supabase.from('profiles').update(updated).eq('id', currentUser.id);
+                                onUpdate(updated);
+                                alert("Your profile has been locked successfully!");
                               }
                             }}
                             className="px-3 py-1.5 rounded bg-amber-500 text-black text-xs font-black uppercase hover:bg-amber-400 transition-all cursor-pointer shadow-lg"
                           >
-                            1,000 Coins
-                          </button>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              const currentRubies = currentUser.rubies || 0;
-                              if (currentRubies < 20) {
-                                alert(`Insufficient Rubies! You need 20 Rubies but you only have ${currentRubies.toLocaleString()}.`);
-                                return;
-                              }
-                              if (window.confirm("Buy Profile Layout Editor for 20 Rubies?")) {
-                                const newRubies = currentRubies - 20;
-                                await supabase.from('profiles').update({
-                                  custom_profile_enabled: true,
-                                  rubies: newRubies
-                                }).eq('id', currentUser.id);
-                                onUpdate({ custom_profile_enabled: true, rubies: newRubies });
-                                alert("Purchased successfully! You can now customize your layout.");
-                              }
-                            }}
-                            className="px-3 py-1.5 rounded bg-rose-500 text-white text-xs font-black uppercase hover:bg-rose-400 transition-all cursor-pointer shadow-lg"
-                          >
-                            20 Rubies
+                            {(targetUser.profile_lock_count && targetUser.profile_lock_count > 0) ? "1,500 Coins" : "1,000 Coins"}
                           </button>
                         </div>
                       </div>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Toggle custom layout active */}
-                      <div className="py-4 px-2 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <Layout className="w-5 h-5 text-indigo-400 shrink-0" />
-                          <div className="flex flex-col">
-                            <span className="text-sm font-bold text-white">Enable Custom Layout</span>
-                            <span className="text-[10px] text-purple-400">Show your customized drag-and-resize profile</span>
-                          </div>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            checked={!!targetUser.custom_profile_enabled} 
-                            onChange={async (e) => {
-                              const enabled = e.target.checked;
-                              await supabase.from('profiles').update({
-                                custom_profile_enabled: enabled
-                              }).eq('id', targetUser.id);
-                              onUpdate({ custom_profile_enabled: enabled });
-                            }}
-                            className="sr-only peer" 
-                          />
-                          <div className="w-9 h-5 bg-purple-950/80 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-purple-300 after:border-purple-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
-                        </label>
-                      </div>
-
-                      {/* Edit Profile Layout Button */}
-                      <button 
-                        onClick={() => {
-                          setCustomLayout(targetUser.profile_layout || DEFAULT_LAYOUT);
-                          setIsEditingCustomLayout(true);
-                        }}
-                        className="w-full text-left py-4 px-2 flex items-center gap-4 hover:bg-white/[0.02] transition-all rounded-none"
-                      >
-                        <Sparkles className="w-5 h-5 text-yellow-400 shrink-0 animate-pulse" />
-                        <div className="flex flex-col">
-                          <span className="text-sm font-bold text-white">Edit profile layout</span>
-                          <span className="text-xs text-zinc-400 mt-0.5">Drag, resize, rotate, and position elements</span>
-                        </div>
-                      </button>
-                    </>
-                  )}
+                    )}
+                  </div>
                 </div>
               )}
             </div>

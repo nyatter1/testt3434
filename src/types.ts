@@ -62,6 +62,8 @@ export interface UserProfile {
   message_format?: string;
   custom_profile_enabled?: boolean;
   profile_layout?: ProfileLayout;
+  profile_locked?: boolean;
+  profile_lock_count?: number;
 }
 
 export interface Rating {

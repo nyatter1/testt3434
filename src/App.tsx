@@ -182,7 +182,9 @@ export default function App() {
         message_effect: data.message_effect || 'none',
         message_format: data.message_format || 'normal',
         custom_profile_enabled: data.custom_profile_enabled,
-        profile_layout: data.profile_layout
+        profile_layout: data.profile_layout,
+        profile_locked: data.profile_locked,
+        profile_lock_count: data.profile_lock_count
       });
     }
     setLoading(false);
@@ -222,6 +224,8 @@ export default function App() {
     if ('message_format' in updatedUser) dbUpdate.message_format = updatedUser.message_format;
     if ('custom_profile_enabled' in updatedUser) dbUpdate.custom_profile_enabled = updatedUser.custom_profile_enabled;
     if ('profile_layout' in updatedUser) dbUpdate.profile_layout = updatedUser.profile_layout;
+    if ('profile_locked' in updatedUser) dbUpdate.profile_locked = updatedUser.profile_locked;
+    if ('profile_lock_count' in updatedUser) dbUpdate.profile_lock_count = updatedUser.profile_lock_count;
 
     const { error } = await supabase
       .from('profiles')
