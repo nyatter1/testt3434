@@ -4,7 +4,7 @@ import {
   Crown, ShieldAlert as RulesIcon, ChevronLeft, ChevronRight, LogOut, Shield,
   MoreHorizontal, EyeOff, Trash2, Reply, Volume2, VolumeX,
   Bell, ShieldCheck, Sparkles, AlertTriangle, Eye, Check, Heart, Edit2, Camera,
-  Palette, CreditCard, Star, Lock, Unlock, Coins, Hand, Type
+  Palette, CreditCard, Star, Lock, Unlock, Coins, Hand, Type, Newspaper
 } from "lucide-react";
 import { UserProfile, Message, OnlineUser, RANKS_INFO, mapDbRankToUserRank, UserRank, getLevelFromXp } from "../types";
 import ProfileModal from "./ProfileModal";
@@ -18,6 +18,7 @@ import ConvertModal from "./ConvertModal";
 import SecretMessageModal from "./SecretMessageModal";
 import SecretMessagesListModal from "./SecretMessagesListModal";
 import RevealDecisionModal from "./RevealDecisionModal";
+import NewsSidebar from "./NewsSidebar";
 
 const getAssetUrl = (path: string) => {
   const base = (import.meta as any).env?.BASE_URL || "/";
@@ -68,6 +69,7 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
   const [chatBgError, setChatBgError] = useState<string | null>(null);
   const bgFileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<"chat" | "staff" | "rules">("chat");
+  const [isNewsOpen, setIsNewsOpen] = useState(false);
   const [rightPanelTab, setRightPanelTab] = useState<"online" | "staff">("online");
   const [genderFilter, setGenderFilter] = useState<"ALL" | "MALE" | "FEMALE" | "OTHER">("ALL");
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
@@ -869,6 +871,11 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
 
     const text = inputText.trim();
     if (!text) return;
+
+    if (/@system\b/i.test(text)) {
+      alert("You cannot mention the System Bot.");
+      return;
+    }
     
     setInputText("");
 
@@ -1543,6 +1550,13 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
                   <RulesIcon className="w-5 h-5 shrink-0" />
                   <span>Rules</span>
                 </button>
+                <button
+                  onClick={() => { setIsNewsOpen(prev => !prev); setActiveTab("chat"); setIsSidebarOpen(false); }}
+                  className={`w-full text-left py-3 px-4 rounded-xl font-bold flex items-center gap-3 transition-all ${isNewsOpen ? "bg-purple-600 text-white shadow-lg shadow-purple-900/20" : "text-purple-300 hover:bg-purple-950/50 hover:text-white"}`}
+                >
+                  <Newspaper className="w-5 h-5 shrink-0" />
+                  <span>News</span>
+                </button>
                 {activeTab !== "chat" && (
                   <button
                     onClick={() => { setActiveTab("chat"); setIsSidebarOpen(false); }}
@@ -1555,6 +1569,17 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
               </div>
             </div>
           </div>
+        )}
+
+        {/* News Sidebar */}
+        {isNewsOpen && activeTab === "chat" && (
+          <NewsSidebar 
+            user={user}
+            onClose={() => setIsNewsOpen(false)}
+            allRanksInfo={allRanksInfo}
+            computedUsers={computedUsers}
+            handleProfileClick={handleProfileClick}
+          />
         )}
 
         {/* Center Screen */}

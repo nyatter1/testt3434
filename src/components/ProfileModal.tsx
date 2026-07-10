@@ -805,6 +805,7 @@ export default function ProfileModal({
 }: ProfileModalProps) {
   const finalRanksInfo = ranksInfo || RANKS_INFO;
   const isOwnProfile = targetUser.username === currentUser.username;
+  const isBotUser = targetUser.id === "musicvibe-bot-system-id" || targetUser.isSystem || targetUser.rank === "BOT" || targetUser.username === "System";
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
@@ -1296,7 +1297,7 @@ export default function ProfileModal({
               </button>
             )}
 
-            {(!targetUser.profile_locked || isOwnProfile) && (
+            {(!targetUser.profile_locked || isOwnProfile) && !isBotUser && (
               <button 
                 onClick={() => { setIsShowingRatings(true); onView(); }}
                 className="w-full text-left px-4 py-3 text-sm text-purple-200 hover:bg-purple-950/50 flex items-center gap-3 transition-colors rounded-none"
@@ -1306,22 +1307,24 @@ export default function ProfileModal({
               </button>
             )}
 
-            <button 
-              onClick={() => {
-                onMention(targetUser.username);
-                onClose();
-              }}
-              className="w-full text-left px-4 py-3 text-sm text-purple-200 hover:bg-purple-950/50 flex items-center gap-3 transition-colors rounded-none"
-            >
-              <MessageSquare className="w-4 h-4 text-purple-400" />
-              Mention User
-            </button>
+            {!isBotUser && (
+              <button 
+                onClick={() => {
+                  onMention(targetUser.username);
+                  onClose();
+                }}
+                className="w-full text-left px-4 py-3 text-sm text-purple-200 hover:bg-purple-950/50 flex items-center gap-3 transition-colors rounded-none"
+              >
+                <MessageSquare className="w-4 h-4 text-purple-400" />
+                Mention User
+              </button>
+            )}
 
             {(() => {
               const isActorDev = ['dev@gmail.com', 'haydensixseven@gmail.com', 'haydensixsevennn@gmail.com', 'test@gmail.com'].includes(currentUser.email || '');
               const actorPriority = finalRanksInfo[currentUser.rank]?.priority ?? 14;
               const targetPriority = finalRanksInfo[targetUser.rank]?.priority ?? 14;
-              const canActionTarget = isActorDev || (actorPriority <= 5 && actorPriority < targetPriority && !isOwnProfile);
+              const canActionTarget = !isBotUser && (isActorDev || (actorPriority <= 5 && actorPriority < targetPriority && !isOwnProfile));
 
               if (!canActionTarget) return null;
 
@@ -2321,7 +2324,7 @@ export default function ProfileModal({
                 >
                   Overview
                 </button>
-                {!isOwnProfile && (
+                {!isOwnProfile && !isBotUser && (
                   <button 
                     onClick={() => setRatingTab("rate")}
                     className={`py-3 text-xs font-bold transition-all border-b-2 ${ratingTab === "rate" ? "text-white border-blue-500" : "text-purple-500 border-transparent"}`}

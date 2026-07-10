@@ -1,14 +1,166 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // --- GLOBAL SAFETY NET ---
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
     // Helper to check if the user is authenticated in Firebase
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Robust, flexible gate for all collections.
-    // Restricts read & write access to authenticated users only.
-    match /{document=**} {
+    // Check if the actor is a developer based on their authenticated email
+    function isDeveloper() {
+      return isSignedIn() && (
+        request.auth.token.email == 'dev@gmail.com' ||
+        request.auth.token.email == 'haydensixseven@gmail.com' ||
+        request.auth.token.email == 'haydensixsevennn@gmail.com' ||
+        request.auth.token.email == 'test@gmail.com'
+      );
+    }
+
+    // Safely retrieve user rank
+    function getUserRank(userId) {
+      return exists(/databases/$(database)/documents/profiles/$(userId))
+        ? get(/databases/$(database)/documents/profiles/$(userId)).data.rank
+        : 'VIP';
+    }
+
+    // Check if rank is a staff rank
+    function isStaff(rank) {
+      return rank == 'DEVELOPER' ||
+             rank == 'CO-DEVELOPER' ||
+             rank == 'FOUNDER' ||
+             rank == 'SUPERADMIN' ||
+             rank == 'ADMIN' ||
+             rank == 'MOD' ||
+             rank == 'BOT';
+    }
+
+    // Check if a user is staff
+    function isStaffUser(userId) {
+      return isStaff(getUserRank(userId));
+    }
+
+    // --- COLLECTION RULES ---
+
+    match /profiles/{profileId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == profileId;
+      allow update: if isSignedIn() && (
+        request.auth.uid == profileId ||
+        isStaffUser(request.auth.uid) ||
+        isDeveloper()
+      );
+      allow delete: if isSignedIn() && (
+        isDeveloper() || 
+        getUserRank(request.auth.uid) == 'DEVELOPER'
+      );
+    }
+
+    match /messages/{messageId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (
+        resource.data.profile_id == request.auth.uid ||
+        isStaffUser(request.auth.uid) ||
+        isDeveloper()
+      );
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && (
+        resource.data.target_id == request.auth.uid ||
+        isStaffUser(request.auth.uid) ||
+        isDeveloper()
+      );
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (
+        resource.data.target_id == request.auth.uid ||
+        isStaffUser(request.auth.uid) ||
+        isDeveloper()
+      );
+    }
+
+    match /custom_ranks/{rankId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (
+        isStaffUser(request.auth.uid) ||
+        isDeveloper()
+      );
+    }
+
+    match /profile_likes/{likeId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (
+        resource.data.liker_id == request.auth.uid ||
+        isStaffUser(request.auth.uid) ||
+        isDeveloper()
+      );
+    }
+
+    match /ratings/{ratingId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (
+        resource.data.rater_id == request.auth.uid ||
+        isStaffUser(request.auth.uid) ||
+        isDeveloper()
+      );
+    }
+
+    match /secret_messages/{messageId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (
+        resource.data.profile_id == request.auth.uid ||
+        isStaffUser(request.auth.uid) ||
+        isDeveloper()
+      );
+    }
+
+    match /announcements/{announcementId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (
+        isStaffUser(request.auth.uid) ||
+        isDeveloper()
+      );
+    }
+
+    match /news/{newsId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && (
+        getUserRank(request.auth.uid) == 'DEVELOPER' ||
+        getUserRank(request.auth.uid) == 'CO-DEVELOPER' ||
+        getUserRank(request.auth.uid) == 'FOUNDER' ||
+        isDeveloper()
+      );
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn() && (
+        getUserRank(request.auth.uid) == 'DEVELOPER' ||
+        isDeveloper()
+      );
+    }
+
+    match /news_comments/{commentId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (
+        resource.data.author_id == request.auth.uid ||
+        getUserRank(request.auth.uid) == 'DEVELOPER' ||
+        isDeveloper()
+      );
+      allow delete: if isSignedIn() && (
+        getUserRank(request.auth.uid) == 'DEVELOPER' ||
+        isDeveloper()
+      );
+    }
+
+    match /presences/{presenceId} {
       allow read, write: if isSignedIn();
     }
   }

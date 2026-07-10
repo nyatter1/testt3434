@@ -24,6 +24,7 @@ export interface UserProfile {
   gender: string;
   age: number;
   pfp: string;
+  isSystem?: boolean;
   banner?: string;
   aboutMe?: string;
   mood?: string;
