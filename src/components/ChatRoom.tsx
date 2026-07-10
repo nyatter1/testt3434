@@ -19,6 +19,7 @@ import SecretMessageModal from "./SecretMessageModal";
 import SecretMessagesListModal from "./SecretMessagesListModal";
 import RevealDecisionModal from "./RevealDecisionModal";
 import NewsSidebar from "./NewsSidebar";
+import ProfileVisitorsModal from "./ProfileVisitorsModal";
 
 const getAssetUrl = (path: string) => {
   const base = (import.meta as any).env?.BASE_URL || "/";
@@ -101,6 +102,7 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [showSecretMessageModal, setShowSecretMessageModal] = useState(false);
   const [showSecretMessagesListModal, setShowSecretMessagesListModal] = useState(false);
+  const [showProfileVisitorsModal, setShowProfileVisitorsModal] = useState(false);
   const [activeDecisionNotif, setActiveDecisionNotif] = useState<any | null>(null);
 
   // Form states inside Admin Panel
@@ -1005,6 +1007,19 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
   const handleProfileClick = (target: UserProfile, mode: "quick" | "view" | "edit" = "quick") => {
     setProfileTarget(target);
     setProfileMode(mode);
+
+    if (target && target.id !== user.id && user.id && user.id !== "system" && !user.isSystem) {
+      supabase.from("profile_visits").insert({
+        profile_id: target.id,
+        visitor_id: user.id,
+        visitor_username: user.username,
+        visitor_pfp: user.pfp || "",
+        visitor_rank: user.rank || "USER",
+        created_at: new Date().toISOString()
+      }).then(({ error }) => {
+        if (error) console.error("Error logging profile visit:", error);
+      });
+    }
   };
 
   const handleMention = (username: string) => {
@@ -1862,6 +1877,22 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
                       <div className="flex flex-col">
                         <span className="font-bold">Secret Inbox</span>
                         <span className="text-[9px] text-purple-400">Read & manage secret whispers</span>
+                      </div>
+                    </button>
+
+                    {/* Profile Visitors option */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowProfileVisitorsModal(true);
+                        setShowPlusOptions(false);
+                      }}
+                      className="flex items-center gap-2.5 px-2 py-1.5 bg-purple-950/30 hover:bg-purple-950/50 border border-purple-900/40 rounded-lg text-left text-xs text-purple-200 hover:text-white transition-all cursor-pointer group mt-1"
+                    >
+                      <Eye className="w-4 h-4 text-blue-400 group-hover:scale-110 transition-transform shrink-0" />
+                      <div className="flex flex-col">
+                        <span className="font-bold">Profile Visitors</span>
+                        <span className="text-[9px] text-blue-400">See who viewed your profile</span>
                       </div>
                     </button>
                   </div>
@@ -2911,6 +2942,17 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
             // Filter from local notification state to immediately remove it
             setNotifications(prev => prev.filter(n => n.id !== activeDecisionNotif.id));
           }}
+        />
+      )}
+
+      {showProfileVisitorsModal && (
+        <ProfileVisitorsModal
+          user={user}
+          onClose={() => setShowProfileVisitorsModal(false)}
+          allRanksInfo={allRanksInfo}
+          computedUsers={computedUsers}
+          handleProfileClick={handleProfileClick}
+          onUserUpdate={onUpdateUser}
         />
       )}
     </div>

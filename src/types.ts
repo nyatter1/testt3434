@@ -40,6 +40,7 @@ export interface UserProfile {
   cardBg?: string;
   coins?: number;
   rubies?: number;
+  profile_visits_expires_at?: string;
   total_xp?: number;
   weekly_xp?: number;
   monthly_xp?: number;

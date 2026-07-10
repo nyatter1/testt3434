@@ -163,5 +163,9 @@ service cloud.firestore {
     match /presences/{presenceId} {
       allow read, write: if isSignedIn();
     }
+
+    match /profile_visits/{visitId} {
+      allow read, write: if isSignedIn();
+    }
   }
 }
