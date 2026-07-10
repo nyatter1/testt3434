@@ -37,6 +37,8 @@ export interface UserProfile {
   email?: string; // Stored locally to verify dev credentials
   border?: string;
   borderThickness?: string;
+  borderStyle?: string;
+  profile_effect?: string;
   cardBg?: string;
   coins?: number;
   rubies?: number;

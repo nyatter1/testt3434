@@ -215,25 +215,17 @@ export default function ProfileVisitorsModal({
     setBuyError(null);
     setIsBuying(true);
 
-    const goldPrice = 500;
-    const rubiesPrice = 10;
+    const goldPrice = 0;
+    const rubiesPrice = 0;
 
     let updatedCoins = user.coins ?? 0;
     let updatedRubies = user.rubies ?? 0;
 
     if (currency === "gold") {
-      if (updatedCoins < goldPrice) {
-        setBuyError("You don't have enough Gold! Convert or chat to earn more.");
-        setIsBuying(false);
-        return;
-      }
+      
       updatedCoins -= goldPrice;
     } else {
-      if (updatedRubies < rubiesPrice) {
-        setBuyError("You don't have enough Rubies! Exchange Gold or get active.");
-        setIsBuying(false);
-        return;
-      }
+      
       updatedRubies -= rubiesPrice;
     }
 

@@ -20,6 +20,7 @@ import SecretMessagesListModal from "./SecretMessagesListModal";
 import RevealDecisionModal from "./RevealDecisionModal";
 import NewsSidebar from "./NewsSidebar";
 import ProfileVisitorsModal from "./ProfileVisitorsModal";
+import ProfileDecorModal from "./ProfileDecorModal";
 
 const getAssetUrl = (path: string) => {
   const base = (import.meta as any).env?.BASE_URL || "/";
@@ -103,6 +104,7 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
   const [showSecretMessageModal, setShowSecretMessageModal] = useState(false);
   const [showSecretMessagesListModal, setShowSecretMessagesListModal] = useState(false);
   const [showProfileVisitorsModal, setShowProfileVisitorsModal] = useState(false);
+  const [showProfileDecorModal, setShowProfileDecorModal] = useState(false);
   const [activeDecisionNotif, setActiveDecisionNotif] = useState<any | null>(null);
 
   // Form states inside Admin Panel
@@ -1504,20 +1506,8 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
                         </button>
                         
                         <div className="px-3 py-2.5 space-y-3">
-                          <div>
-                            <p className="text-[9px] uppercase font-bold text-purple-400 tracking-wider">Ruby</p>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-base">💎</span>
-                              <span className="text-xs font-black text-white">{user.rubies ?? 10}</span>
-                            </div>
-                          </div>
-                          <div className="border-t border-purple-950/40 pt-2">
-                            <p className="text-[9px] uppercase font-bold text-purple-400 tracking-wider">Gold</p>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-base">🪙</span>
-                              <span className="text-xs font-black text-white">{user.coins ?? 1000}</span>
-                            </div>
-                          </div>
+                          
+                          
                         </div>
                       </>
                     )}
@@ -1816,21 +1806,7 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
                       </div>
                     </button>
 
-                    {/* Convert option */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowConvertModal(true);
-                        setShowPlusOptions(false);
-                      }}
-                      className="flex items-center gap-2.5 px-2 py-1.5 hover:bg-purple-950/40 rounded-lg text-left text-xs text-purple-200 hover:text-white transition-all cursor-pointer group"
-                    >
-                      <Coins className="w-4 h-4 text-yellow-500 group-hover:scale-110 transition-transform shrink-0" />
-                      <div className="flex flex-col">
-                        <span className="font-bold">Currency Convert</span>
-                        <span className="text-[9px] text-purple-500">Gold ↔ Rubies exchange</span>
-                      </div>
-                    </button>
+                    
 
                     {/* Image option */}
                     <button
@@ -1893,6 +1869,22 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
                       <div className="flex flex-col">
                         <span className="font-bold">Profile Visitors</span>
                         <span className="text-[9px] text-blue-400">See who viewed your profile</span>
+                      </div>
+                    </button>
+
+                    {/* Profile Decor option */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowProfileDecorModal(true);
+                        setShowPlusOptions(false);
+                      }}
+                      className="flex items-center gap-2.5 px-2 py-1.5 bg-purple-950/30 hover:bg-purple-950/50 border border-purple-900/40 rounded-lg text-left text-xs text-purple-200 hover:text-white transition-all cursor-pointer group mt-1"
+                    >
+                      <Sparkles className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform shrink-0" />
+                      <div className="flex flex-col">
+                        <span className="font-bold">Profile Decor</span>
+                        <span className="text-[9px] text-amber-400">Buy Borders & Effects</span>
                       </div>
                     </button>
                   </div>
@@ -1984,6 +1976,7 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
                 <div className="space-y-1"><h3 className="text-sm font-bold text-purple-300">1. Respect all chat members</h3><p className="text-xs text-purple-400 leading-relaxed">Treat others with courtesy and respect. Personal attacks, harassment, and discrimination of any kind are strictly forbidden.</p></div>
                 <div className="space-y-1 pt-3 border-t border-purple-950/50"><h3 className="text-sm font-bold text-purple-300">2. No Spamming or Flooding</h3><p className="text-xs text-purple-400 leading-relaxed">Avoid posting the same message repeatedly, using excessive capital letters, or posting random text patterns that disturb the readability of the screen.</p></div>
                 <div className="space-y-1 pt-3 border-t border-purple-950/50"><h3 className="text-sm font-bold text-purple-300">3. Underage Safety Policy</h3><p className="text-xs text-purple-400 leading-relaxed">Users of all permitted ages are present here. Ensure all conversation remains strictly appropriate, polite, and safe for minor members of our platform.</p></div>
+                <div className="space-y-1 pt-3 border-t border-purple-950/50"><h3 className="text-sm font-bold text-purple-300">4. Free Customization Update</h3><p className="text-xs text-purple-400 leading-relaxed">All profile borders and visual effects have been made completely free for all users! Enjoy designing your unique profile without currency limits.</p></div>
               </div>
               <button onClick={() => setActiveTab("chat")} className="mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-lg transition-colors">Accept and Close Rules</button>
             </div>
@@ -2953,6 +2946,19 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
           computedUsers={computedUsers}
           handleProfileClick={handleProfileClick}
           onUserUpdate={onUpdateUser}
+        />
+      )}
+
+      {showProfileDecorModal && (
+        <ProfileDecorModal
+          user={user}
+          onClose={() => setShowProfileDecorModal(false)}
+          onUserUpdate={onUpdateUser}
+          onPurchase={() => {
+            setShowProfileDecorModal(false);
+            setProfileTarget(user);
+            setProfileMode("view");
+          }}
         />
       )}
     </div>

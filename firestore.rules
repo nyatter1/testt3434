@@ -47,8 +47,13 @@ service cloud.firestore {
 
     // --- COLLECTION RULES ---
 
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if isSignedIn() && request.auth.uid == userId;
+    }
+
     match /profiles/{profileId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow create: if isSignedIn() && request.auth.uid == profileId;
       allow update: if isSignedIn() && (
         request.auth.uid == profileId ||

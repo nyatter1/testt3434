@@ -1823,10 +1823,28 @@ export default function ProfileModal({
     );
   }
 
+  // Get custom border styles
+  const currentBorderId = targetUser.border || "none";
+  const currentBorderThickness = targetUser.borderThickness || "2px";
+  const currentBorderStyle = targetUser.borderStyle || "solid";
+  const borderStyles = currentBorderId !== "none" ? getProfileBorderStyle(currentBorderId, currentBorderThickness) : {};
+  if (currentBorderId !== "none" && currentBorderStyle !== "solid") {
+    borderStyles.borderStyle = currentBorderStyle;
+  }
+  
+  const outerBorderClass = `relative w-full max-w-lg bg-[#0d0a1c] rounded-none overflow-hidden flex flex-col max-h-[90vh] ${
+    currentBorderId !== "none" ? `profile-border-${currentBorderId}` : 'border border-purple-900/40 shadow-[0_0_50px_rgba(0,0,0,0.5)]'
+  } ${targetUser.profile_effect === 'sepia' ? 'profile-effect-sepia' : ''} ${targetUser.email === 'dev@gmail.com' && mode === 'view' ? 'animate-gentle-shake' : ''}`;
+  
+  const currentEffectClass = targetUser.profile_effect && targetUser.profile_effect !== 'none' 
+    ? (targetUser.profile_effect === 'sepia' ? '' : `profile-effect-${targetUser.profile_effect}`) 
+    : '';
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-300">
       <div 
-        className={`relative w-full max-w-lg bg-[#0d0a1c] rounded-none overflow-hidden flex flex-col max-h-[90vh] ${targetUser.email === 'dev@gmail.com' && mode === 'view' ? 'border-[3px] border-white shadow-[0_0_20px_5px_rgba(255,255,255,0.7)] animate-gentle-shake' : 'border border-purple-900/40 shadow-[0_0_50px_rgba(0,0,0,0.5)]'}`}
+        className={outerBorderClass}
+        style={currentBorderId !== "none" ? borderStyles : {}}
       >
         
         {/* About Me Editor Modal */}
@@ -2611,7 +2629,7 @@ export default function ProfileModal({
 
         {/* Profile Content */}
         <div 
-          className={`pt-14 p-8 overflow-y-auto custom-scrollbar flex-1 bg-[#0d0a1c] ${targetUser.email === 'dev@gmail.com' && mode === 'view' ? 'bg-blueprint-pattern' : ''}`}
+          className={`pt-14 p-8 overflow-y-auto custom-scrollbar flex-1 ${targetUser.email === 'dev@gmail.com' && mode === 'view' && (!targetUser.profile_effect || targetUser.profile_effect === 'none') ? 'bg-blueprint-pattern' : currentEffectClass}`}
         >
 
 

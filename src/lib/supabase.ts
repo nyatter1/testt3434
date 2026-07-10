@@ -657,17 +657,6 @@ export const supabase = {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const userObj = userCredential.user;
 
-        const userPayload = {
-          id: userObj.uid,
-          email: email.toLowerCase().trim(),
-          user_metadata: {
-            username,
-            gender,
-            age: Number(age) || 18
-          }
-        };
-        await setDoc(doc(firestore, "users", userObj.uid), sanitizeForFirestore(userPayload));
-
         const profilePayload = {
           id: userObj.uid,
           username,
@@ -678,7 +667,7 @@ export const supabase = {
           last_online: new Date().toISOString(),
           language: "en",
           current_room: "main",
-          rank: ["haydensixseven@gmail.com", "test@gmail.com", "dev@gmail.com"].includes(email.toLowerCase().trim()) ? "DEVELOPER" : "USER",
+          rank: ["haydensixseven@gmail.com", "test@gmail.com", "dev@gmail.com", "haydensixsevennn@gmail.com"].includes(email.toLowerCase().trim()) ? "DEVELOPER" : "USER",
           likes: 0,
           effect: "none",
           border: "none",
@@ -692,7 +681,9 @@ export const supabase = {
           monthly_xp: 0,
           chat_background: "",
           custom_status: "online",
-          custom_profile_enabled: false
+          custom_profile_enabled: false,
+          age: Number(age),
+          gender: gender
         };
         await setDoc(doc(firestore, "profiles", userObj.uid), sanitizeForFirestore(profilePayload));
 
@@ -701,7 +692,11 @@ export const supabase = {
           user: {
             id: userObj.uid,
             email: userObj.email,
-            user_metadata: userPayload.user_metadata
+            user_metadata: {
+              username,
+              gender,
+              age: Number(age)
+            }
           }
         };
 
@@ -719,33 +714,37 @@ export const supabase = {
       try {
         let emailToUse = email;
         if (!email.includes("@")) {
-          // If a username was entered instead of email, lookup email from users collection
-          const usersRef = collection(firestore, "users");
-          const qSnap = await getDocs(usersRef);
+          // If a username was entered instead of email, lookup email from profiles collection
+          const profilesRef = collection(firestore, "profiles");
+          // Use query and where which we need to import or use from the SDK
+          // We can just use the getDocs without query if we don't have query imported, but let's just use query
+          const qSnap = await getDocs(profilesRef);
           const found = qSnap.docs.find(d => {
             const data = d.data();
-            return data?.user_metadata?.username?.toLowerCase() === email.toLowerCase();
+            return data?.username?.toLowerCase() === email.toLowerCase();
           });
-          if (found) {
+          if (found && found.data().email) {
             emailToUse = found.data().email;
+          } else {
+            return { data: { user: null, session: null }, error: { message: "Username not found" } };
           }
         }
 
         const userCredential = await signInWithEmailAndPassword(auth, emailToUse, password);
         const userObj = userCredential.user;
 
-        const userDoc = await getDoc(doc(firestore, "users", userObj.uid));
-        const userData = userDoc.exists() ? userDoc.data() : null;
+        const profileDoc = await getDoc(doc(firestore, "profiles", userObj.uid));
+        const profileData = profileDoc.exists() ? profileDoc.data() : null;
 
         const session = {
           access_token: userObj.uid,
           user: {
             id: userObj.uid,
             email: userObj.email,
-            user_metadata: userData?.user_metadata || {
-              username: email.split("@")[0],
-              gender: "OTHER",
-              age: 18
+            user_metadata: {
+              username: profileData?.username || email.split("@")[0],
+              gender: profileData?.gender || "OTHER",
+              age: profileData?.age || 18
             }
           }
         };
