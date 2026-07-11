@@ -7,6 +7,8 @@ import {
   LayoutGrid, Ban, ChevronLeft, ChevronRight, Check, Layout, Move
 } from "lucide-react";
 import { UserProfile, Rating, UserRank, RANKS_INFO, getLevelFromXp, ProfileLayout, ElementLayout } from "../types";
+import GalleryViewModal from "./GalleryViewModal";
+import { Image as ImageIcon } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { uploadImageToStorage } from "../lib/storage";
 
@@ -815,6 +817,7 @@ export default function ProfileModal({
   const [isEditingInfo, setIsEditingInfo] = useState(false);
   const [isEditingPassword, setIsEditingPassword] = useState(false);
   const [isShowingRatings, setIsShowingRatings] = useState(false);
+  const [isShowingGallery, setIsShowingGallery] = useState(false);
   const [showLevelStats, setShowLevelStats] = useState(false);
   const [editTab, setEditTab] = useState<"account" | "more">("account");
 
@@ -2294,7 +2297,15 @@ export default function ProfileModal({
         )}
 
         {/* Ratings Modal */}
-        {isShowingRatings && (
+        
+      {isShowingGallery && (
+        <GalleryViewModal
+          user={targetUser}
+          onClose={() => setIsShowingGallery(false)}
+        />
+      )}
+
+      {isShowingRatings && (
           <div className="fixed inset-0 z-[75] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in zoom-in-95 duration-200">
             <div className="w-full max-w-lg bg-[#0d0d14] border border-purple-900/30 rounded-3xl overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.8)]">
               <div className="p-5 flex items-center justify-between border-b border-purple-900/20">
@@ -2632,7 +2643,14 @@ export default function ProfileModal({
           className={`pt-14 p-8 overflow-y-auto custom-scrollbar flex-1 ${targetUser.email === 'dev@gmail.com' && mode === 'view' && (!targetUser.profile_effect || targetUser.profile_effect === 'none') ? 'bg-blueprint-pattern' : currentEffectClass}`}
         >
 
-
+          <div className="mb-6">
+            <button
+               onClick={() => setIsShowingGallery(true)}
+               className="w-full py-3 bg-blue-500/10 border border-blue-500/30 rounded-xl text-blue-400 font-bold flex items-center justify-center gap-2 hover:bg-blue-500/20 transition-colors shadow-[0_0_15px_rgba(59,130,246,0.15)]"
+            >
+              <ImageIcon className="w-5 h-5" /> View Gallery ({targetUser.gallery?.length || 0} Photos)
+            </button>
+          </div>
           {mode === "view" ? (
             targetUser.profile_locked && !isOwnProfile ? (
               <div className="flex flex-col items-center justify-center py-16 px-4 text-center animate-in fade-in duration-300">

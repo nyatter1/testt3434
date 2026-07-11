@@ -68,6 +68,7 @@ export interface UserProfile {
   profile_layout?: ProfileLayout;
   profile_locked?: boolean;
   profile_lock_count?: number;
+  gallery?: string[];
 }
 
 export interface Rating {

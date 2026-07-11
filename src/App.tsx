@@ -184,7 +184,8 @@ export default function App() {
         custom_profile_enabled: data.custom_profile_enabled,
         profile_layout: data.profile_layout,
         profile_locked: data.profile_locked,
-        profile_lock_count: data.profile_lock_count
+        profile_lock_count: data.profile_lock_count,
+        gallery: data.gallery || []
       });
     }
     setLoading(false);
@@ -226,6 +227,7 @@ export default function App() {
     if ('profile_layout' in updatedUser) dbUpdate.profile_layout = updatedUser.profile_layout;
     if ('profile_locked' in updatedUser) dbUpdate.profile_locked = updatedUser.profile_locked;
     if ('profile_lock_count' in updatedUser) dbUpdate.profile_lock_count = updatedUser.profile_lock_count;
+    if ('gallery' in updatedUser) dbUpdate.gallery = updatedUser.gallery;
 
     const { error } = await supabase
       .from('profiles')
