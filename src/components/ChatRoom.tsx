@@ -2218,6 +2218,7 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
 
       {profileTarget && (
         <ProfileModal
+          soundsEnabled={soundsEnabled}
           targetUser={profileTarget}
           currentUser={user}
           mode={profileMode}

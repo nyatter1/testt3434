@@ -116,3 +116,86 @@ export async function uploadImageToStorage(
     });
   }
 }
+
+/**
+ * Uploads an audio file to Supabase Storage, trying to create the bucket 'uploads' if it doesn't exist.
+ * Returns the public URL or falls back to base64.
+ */
+export async function uploadAudioToStorage(
+  file: File,
+  folder: string,
+  fileName: string
+): Promise<string> {
+  const bucketName = 'uploads';
+  // Clean file name to prevent path issues
+  const cleanName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+  const filePath = `${folder}/${Date.now()}_${cleanName}`;
+
+  try {
+    // 1. Try to upload the file to the 'uploads' bucket
+    const { data, error } = await supabase.storage
+      .from(bucketName)
+      .upload(filePath, file, {
+        contentType: file.type || 'audio/mpeg',
+        cacheControl: '31536000', // 1 year cache
+        upsert: true,
+      });
+
+    // If there is an error, check if it's because the bucket doesn't exist
+    if (error) {
+      console.warn("Storage upload error, trying to create bucket:", error);
+      
+      // Try to create the bucket using JS SDK
+      try {
+        const { error: createError } = await supabase.storage.createBucket(bucketName, {
+          public: true,
+        });
+
+        if (createError) {
+          console.error("Could not create bucket:", createError);
+          throw error; // throw original upload error to trigger fallback
+        }
+
+        // Try uploading again after creating the bucket
+        const { data: retryData, error: retryError } = await supabase.storage
+          .from(bucketName)
+          .upload(filePath, file, {
+            contentType: file.type || 'audio/mpeg',
+            cacheControl: '31536000',
+            upsert: true,
+          });
+
+        if (retryError) {
+          throw retryError;
+        }
+      } catch (bucketErr) {
+        console.error("Error managing bucket, falling back to base64:", bucketErr);
+        throw error; // Trigger base64 fallback
+      }
+    }
+
+    // 2. Get public URL
+    const { data: urlData } = supabase.storage
+      .from(bucketName)
+      .getPublicUrl(filePath);
+
+    return urlData.publicUrl;
+  } catch (err) {
+    console.warn("Supabase Storage failed or is unconfigured, falling back to base64:", err);
+    
+    // Fallback to base64 for audio file
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+        } else {
+          reject(new Error("Failed to convert audio file to base64"));
+        }
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
+}
+

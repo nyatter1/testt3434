@@ -69,6 +69,8 @@ export interface UserProfile {
   profile_locked?: boolean;
   profile_lock_count?: number;
   gallery?: string[];
+  profile_music_url?: string;
+  profile_music_visualizer?: string;
 }
 
 export interface Rating {
