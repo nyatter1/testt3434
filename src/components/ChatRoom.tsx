@@ -4,7 +4,8 @@ import {
   Crown, ShieldAlert as RulesIcon, ChevronLeft, ChevronRight, LogOut, Shield,
   MoreHorizontal, EyeOff, Trash2, Reply, Volume2, VolumeX,
   Bell, ShieldCheck, Sparkles, AlertTriangle, Eye, Check, Heart, Edit2, Camera,
-  Palette, CreditCard, Star, Lock, Unlock, Coins, Hand, Type, Newspaper
+  Palette, CreditCard, Star, Lock, Unlock, Coins, Hand, Type, Newspaper,
+  Vote, Gift
 } from "lucide-react";
 import { UserProfile, Message, OnlineUser, RANKS_INFO, mapDbRankToUserRank, UserRank, getLevelFromXp } from "../types";
 import ProfileModal from "./ProfileModal";
@@ -23,6 +24,8 @@ import RevealDecisionModal from "./RevealDecisionModal";
 import NewsSidebar from "./NewsSidebar";
 import ProfileVisitorsModal from "./ProfileVisitorsModal";
 import ProfileDecorModal from "./ProfileDecorModal";
+import PollModal from "./PollModal";
+import GiftModal from "./GiftModal";
 
 const getAssetUrl = (path: string) => {
   const base = (import.meta as any).env?.BASE_URL || "/";
@@ -109,6 +112,8 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
   const [showProfileVisitorsModal, setShowProfileVisitorsModal] = useState(false);
   const [showProfileDecorModal, setShowProfileDecorModal] = useState(false);
   const [activeDecisionNotif, setActiveDecisionNotif] = useState<any | null>(null);
+  const [showPollModal, setShowPollModal] = useState(false);
+  const [showGiftModal, setShowGiftModal] = useState(false);
 
   // Form states inside Admin Panel
   const [newRankKey, setNewRankKey] = useState("");
@@ -310,6 +315,20 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
         if (payload?.old?.id) {
           setMessages(prev => prev.filter(m => m.id !== payload.old.id));
         }
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, (payload) => {
+        const updatedMsg = payload?.new as any;
+        if (!updatedMsg) return;
+        setMessages(prev => prev.map(m => {
+          if (m.id === updatedMsg.id) {
+            return {
+              ...m,
+              text: updatedMsg.text || "",
+              image_url: updatedMsg.image_url,
+            };
+          }
+          return m;
+        }));
       })
       .subscribe();
 
@@ -886,36 +905,241 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
     
     setInputText("");
 
+    const addLocalSystemMessage = (textStr: string) => {
+      const localMsg: Message = {
+        id: "local-sys-" + Date.now() + Math.random(),
+        profile_id: "system",
+        username: "System",
+        pfp: "https://api.dicebear.com/7.x/bottts/svg?seed=system",
+        text: textStr,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isSystem: true,
+        rank: 'DEVELOPER'
+      };
+      setMessages(prev => [...prev, localMsg]);
+    };
+
     if (text.startsWith('/')) {
-      const parts = text.split(' ');
+      const parts = text.split(' ').filter(Boolean);
       const cmd = parts[0].toLowerCase();
       
-      if (cmd === '/clear' && user.rank === 'DEVELOPER') {
-        await supabase.from('messages').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        await supabase.from('messages').insert([
-          {
-            profile_id: user.id,
-            text: `[SYSTEM] Chat cleared by: ${user.username}`,
-            room: 'main'
-          }
-        ]);
+      const knownCommands = ['/commands', '/clear', '/rank', '/allin', '/dice'];
+      if (!knownCommands.includes(cmd)) {
+        addLocalSystemMessage(`Unknown command "${cmd}". Type /commands to see all available commands.`);
         return;
-      } else if (cmd === '/rank' && user.rank === 'DEVELOPER' && parts.length >= 3) {
-        const targetUsername = parts[1];
-        const newRank = parts[2].toUpperCase();
-        if (['USER', 'STAFF', 'DEVELOPER'].includes(newRank)) {
-          const { error } = await supabase.from('profiles').update({ rank: newRank }).ilike('username', targetUsername);
-          
-          await supabase.from('messages').insert({
-            profile_id: user.id,
-            text: error 
-              ? `[SYSTEM] Error updating rank for ${targetUsername}: ${error.message}` 
-              : `[SYSTEM] ${targetUsername}'s rank has been updated to ${newRank} by ${user.username}`,
-            room: 'main'
-          });
-          
+      }
+
+      if (cmd === '/commands') {
+        addLocalSystemMessage(
+          `📜 Chat Commands List:\n` +
+          `• /commands - Show this help list (only visible to you).\n` +
+          `• /clear - Clear your chat screen locally.\n` +
+          `• /rank - Show your current rank and balance details.\n` +
+          `• /allin [gold/rubies] - Bet ALL your Gold or Rubies for a multiplier up to x1000!\n` +
+          `• /dice [gold/rubies] [amount] - Roll 1-6. Lands on 6 wins up to x1000 multiplier!`
+        );
+        return;
+      }
+
+      if (cmd === '/clear') {
+        const userPriority = allRanksInfo[user.rank]?.priority ?? 14;
+        const isFounderOrAbove = userPriority <= 2;
+
+        if (isFounderOrAbove) {
+          await supabase.from('messages').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+          await supabase.from('messages').insert([
+            {
+              profile_id: user.id,
+              text: `[SYSTEM] Chat cleared by: ${user.username}`,
+              room: 'main'
+            }
+          ]);
+          playAudio('/clear.mp3');
+        } else {
+          addLocalSystemMessage("You do not have permission to clear the chat. (Founder and above only)");
+        }
+        return;
+      }
+
+      if (cmd === '/rank') {
+        if (user.rank === 'DEVELOPER' && parts.length >= 3) {
+          const targetUsername = parts[1];
+          const newRank = parts[2].toUpperCase();
+          if (['USER', 'STAFF', 'DEVELOPER'].includes(newRank)) {
+            const { error } = await supabase.from('profiles').update({ rank: newRank }).ilike('username', targetUsername);
+            
+            await supabase.from('messages').insert({
+              profile_id: user.id,
+              text: error 
+                ? `[SYSTEM] Error updating rank for ${targetUsername}: ${error.message}` 
+                : `[SYSTEM] ${targetUsername}'s rank has been updated to ${newRank} by ${user.username}`,
+              room: 'main'
+            });
+            return;
+          }
+        } else {
+          addLocalSystemMessage(
+            `📊 Profile Status:\n` +
+            `• User: ${user.username}\n` +
+            `• Rank: ${user.rank || 'USER'}\n` +
+            `• Gold Coins: ${(user.coins ?? 1000).toLocaleString()}\n` +
+            `• Rubies: ${(user.rubies ?? 10).toLocaleString()}`
+          );
+        }
+        return;
+      }
+
+      if (cmd === '/allin') {
+        const currency = (parts[1] || '').toLowerCase();
+        if (currency !== 'gold' && currency !== 'rubies') {
+          addLocalSystemMessage('Usage: /allin [gold/rubies]');
           return;
         }
+
+        const balance = currency === 'gold' ? (user.coins ?? 1000) : (user.rubies ?? 10);
+        if (balance <= 0) {
+          addLocalSystemMessage(`You do not have any ${currency} to go all-in!`);
+          return;
+        }
+
+        const betAmount = balance;
+        const winRoll = Math.random();
+        const won = winRoll < 0.45; // 45% win chance
+
+        let multiplier = 0;
+        let payout = 0;
+
+        if (won) {
+          const multRoll = Math.random();
+          if (multRoll < 0.75) {
+            multiplier = 1.5 + Math.random() * 0.5;
+          } else if (multRoll < 0.93) {
+            multiplier = 2.1 + Math.random() * 2.9;
+          } else if (multRoll < 0.98) {
+            multiplier = 5.0 + Math.random() * 15.0;
+          } else if (multRoll < 0.998) {
+            multiplier = 20.0 + Math.random() * 80.0;
+          } else {
+            multiplier = 100.0 + Math.random() * 900.0;
+          }
+          multiplier = Math.round(multiplier * 10) / 10;
+          payout = Math.floor(betAmount * multiplier);
+        }
+
+        const newBalance = balance - betAmount + payout;
+
+        if (currency === 'gold') {
+          await onUpdateUser({ coins: newBalance });
+        } else {
+          await onUpdateUser({ rubies: newBalance });
+        }
+
+        const serialized = `[GAMBLE]:${JSON.stringify({
+          command: `/allin ${currency}`,
+          currency,
+          bet: betAmount,
+          won,
+          payout,
+          multiplier
+        })}`;
+
+        const { error } = await supabase.from('messages').insert({
+          profile_id: user.id,
+          text: serialized,
+          room: 'main'
+        });
+
+        if (!error) {
+          await incrementXp();
+        } else {
+          console.error("Gamble insert error:", error);
+        }
+        return;
+      }
+
+      if (cmd === '/dice') {
+        const currency = (parts[1] || '').toLowerCase();
+        if (currency !== 'gold' && currency !== 'rubies') {
+          addLocalSystemMessage('Usage: /dice [gold/rubies] [amount]');
+          return;
+        }
+
+        const amountStr = (parts[2] || '').toLowerCase();
+        if (!amountStr) {
+          addLocalSystemMessage('Usage: /dice [gold/rubies] [amount]');
+          return;
+        }
+
+        const balance = currency === 'gold' ? (user.coins ?? 1000) : (user.rubies ?? 10);
+        let betAmount = 0;
+        if (amountStr === 'all' || amountStr === 'allin') {
+          betAmount = balance;
+        } else {
+          betAmount = parseInt(amountStr, 10);
+          if (isNaN(betAmount) || betAmount <= 0) {
+            addLocalSystemMessage('Please specify a valid positive amount or "all".');
+            return;
+          }
+        }
+
+        if (betAmount > balance) {
+          addLocalSystemMessage(`Insufficient funds! You only have ${balance.toLocaleString()} ${currency}.`);
+          return;
+        }
+
+        const roll = Math.floor(Math.random() * 6) + 1;
+        const won = roll === 6;
+
+        let multiplier = 0;
+        let payout = 0;
+
+        if (won) {
+          const multRoll = Math.random();
+          if (multRoll < 0.75) {
+            multiplier = 3.0 + Math.random() * 2.0;
+          } else if (multRoll < 0.93) {
+            multiplier = 5.1 + Math.random() * 9.9;
+          } else if (multRoll < 0.98) {
+            multiplier = 15.0 + Math.random() * 35.0;
+          } else if (multRoll < 0.998) {
+            multiplier = 50.0 + Math.random() * 150.0;
+          } else {
+            multiplier = 200.0 + Math.random() * 800.0;
+          }
+          multiplier = Math.round(multiplier * 10) / 10;
+          payout = Math.floor(betAmount * multiplier);
+        }
+
+        const newBalance = balance - betAmount + payout;
+
+        if (currency === 'gold') {
+          await onUpdateUser({ coins: newBalance });
+        } else {
+          await onUpdateUser({ rubies: newBalance });
+        }
+
+        const serialized = `[GAMBLE]:${JSON.stringify({
+          command: `/dice ${currency} ${betAmount}`,
+          currency,
+          bet: betAmount,
+          roll,
+          won,
+          payout,
+          multiplier
+        })}`;
+
+        const { error } = await supabase.from('messages').insert({
+          profile_id: user.id,
+          text: serialized,
+          room: 'main'
+        });
+
+        if (!error) {
+          await incrementXp();
+        } else {
+          console.error("Gamble insert error:", error);
+        }
+        return;
       }
     }
 
@@ -1040,6 +1264,409 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
       }
       return <span key={i}>{part}</span>;
     });
+  };
+
+  const getGiftStyleConfig = (styleName: string) => {
+    switch (styleName) {
+      case "Royal":
+        return {
+          cardBg: "from-purple-900/60 to-indigo-950/80 border-purple-500/40",
+          boxColor: "text-purple-400",
+          boxBg: "bg-purple-900/30 border-purple-500/30",
+          glow: "shadow-purple-500/10",
+          ribbonColor: "bg-purple-500",
+          accentEmoji: "🎁",
+        };
+      case "Neon":
+        return {
+          cardBg: "from-fuchsia-950/60 to-cyan-950/80 border-fuchsia-500/40 shadow-[0_0_15px_rgba(236,72,153,0.15)]",
+          boxColor: "text-cyan-400 animate-pulse",
+          boxBg: "bg-cyan-900/30 border-cyan-500/30",
+          glow: "shadow-cyan-500/20",
+          ribbonColor: "bg-fuchsia-500",
+          accentEmoji: "✨",
+        };
+      case "Candy":
+        return {
+          cardBg: "from-amber-950/60 to-red-950/80 border-amber-500/40",
+          boxColor: "text-amber-400",
+          boxBg: "bg-amber-900/30 border-amber-500/30",
+          glow: "shadow-amber-500/10",
+          ribbonColor: "bg-red-400",
+          accentEmoji: "🍬",
+        };
+      case "Ice":
+        return {
+          cardBg: "from-sky-950/60 to-blue-950/80 border-sky-400/40",
+          boxColor: "text-sky-300",
+          boxBg: "bg-sky-900/30 border-sky-500/30",
+          glow: "shadow-sky-400/10",
+          ribbonColor: "bg-sky-400",
+          accentEmoji: "❄️",
+        };
+      case "Dark":
+        return {
+          cardBg: "from-neutral-900/80 to-stone-950/90 border-stone-700/50",
+          boxColor: "text-stone-400",
+          boxBg: "bg-stone-900/30 border-stone-700/30",
+          glow: "shadow-black/50",
+          ribbonColor: "bg-stone-600",
+          accentEmoji: "🕷️",
+        };
+      case "Gold":
+        return {
+          cardBg: "from-yellow-950/60 to-amber-950/80 border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.15)]",
+          boxColor: "text-yellow-400 animate-bounce",
+          boxBg: "bg-yellow-900/30 border-yellow-500/30",
+          glow: "shadow-yellow-500/20",
+          ribbonColor: "bg-yellow-500",
+          accentEmoji: "🌟",
+        };
+      case "Love":
+        return {
+          cardBg: "from-red-950/60 to-pink-950/80 border-red-500/40 shadow-[0_0_15px_rgba(244,63,94,0.15)]",
+          boxColor: "text-rose-400",
+          boxBg: "bg-rose-900/30 border-rose-500/30",
+          glow: "shadow-rose-500/10",
+          ribbonColor: "bg-rose-500",
+          accentEmoji: "💖",
+        };
+      case "Classic":
+      default:
+        return {
+          cardBg: "from-red-900/60 to-rose-950/80 border-rose-500/40 shadow-[0_0_15px_rgba(239,68,68,0.15)]",
+          boxColor: "text-red-400",
+          boxBg: "bg-red-900/30 border-red-500/30",
+          glow: "shadow-red-500/10",
+          ribbonColor: "bg-red-500",
+          accentEmoji: "🎁",
+        };
+    }
+  };
+
+  const renderPoll = (msg: Message) => {
+    try {
+      const jsonStr = msg.text.replace('[POLL]:', '').trim();
+      const poll = JSON.parse(jsonStr);
+      
+      const question = poll.question || "Untitled Poll";
+      const options = poll.options || [];
+      const mode = poll.mode || "Normal - show voters";
+      const duration = poll.duration || "1 hour";
+      const votes = poll.votes || {};
+      
+      let totalVotes = 0;
+      options.forEach((_: any, idx: number) => {
+        const optVotes = votes[idx] || [];
+        totalVotes += optVotes.length;
+      });
+      
+      let userVotedOptionIndex = -1;
+      options.forEach((_: any, idx: number) => {
+        const optVotes = votes[idx] || [];
+        if (optVotes.includes(user.username)) {
+          userVotedOptionIndex = idx;
+        }
+      });
+
+      const handleVote = async (optionIdx: number) => {
+        const updatedVotes = { ...votes };
+        
+        options.forEach((_: any, idx: number) => {
+          if (updatedVotes[idx]) {
+            updatedVotes[idx] = updatedVotes[idx].filter((u: string) => u !== user.username);
+          } else {
+            updatedVotes[idx] = [];
+          }
+        });
+        
+        if (userVotedOptionIndex !== optionIdx) {
+          updatedVotes[optionIdx].push(user.username);
+        }
+        
+        const updatedPoll = { ...poll, votes: updatedVotes };
+        const updatedText = `[POLL]:${JSON.stringify(updatedPoll)}`;
+        
+        setMessages(prev => prev.map(m => {
+          if (m.id === msg.id) {
+            return { ...m, text: updatedText };
+          }
+          return m;
+        }));
+        
+        await supabase
+          .from('messages')
+          .update({ text: updatedText })
+          .eq('id', msg.id);
+      };
+
+      return (
+        <div className="mt-2 bg-[#120f26]/90 border border-purple-500/30 rounded-2xl p-4 max-w-md w-full shadow-2xl space-y-3.5 text-white animate-in zoom-in-95 duration-150">
+          <div className="flex items-start gap-2.5">
+            <div className="p-2 bg-purple-600/20 rounded-xl border border-purple-500/30">
+              <Vote className="w-5 h-5 text-purple-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-sm font-black text-white leading-snug break-words tracking-wide">{question}</h4>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-purple-900/40 text-purple-300 tracking-wider">
+                  {mode}
+                </span>
+                <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-white/5 text-purple-400 tracking-wider">
+                  ⏱️ {duration}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            {options.map((opt: string, idx: number) => {
+              const optVotes = votes[idx] || [];
+              const count = optVotes.length;
+              const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+              const hasVotedThis = userVotedOptionIndex === idx;
+              
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleVote(idx)}
+                  className={`w-full relative overflow-hidden text-left p-3 rounded-xl border transition-all duration-200 flex flex-col justify-between ${
+                    hasVotedThis
+                      ? "border-purple-500 bg-purple-500/10 hover:bg-purple-500/20"
+                      : "border-purple-900/20 bg-black/20 hover:border-purple-500/30 hover:bg-black/40 animate-none cursor-pointer"
+                  }`}
+                >
+                  <div 
+                    className={`absolute left-0 top-0 bottom-0 transition-all duration-300 -z-10 ${
+                      hasVotedThis ? "bg-purple-500/15" : "bg-purple-900/5"
+                    }`}
+                    style={{ width: `${pct}%` }}
+                  />
+                  
+                  <div className="flex justify-between items-center w-full z-10">
+                    <span className={`text-xs font-bold leading-normal break-words pr-4 ${hasVotedThis ? "text-purple-300" : "text-white"}`}>
+                      {opt}
+                    </span>
+                    <span className="text-xs font-black text-purple-400 shrink-0">
+                      {pct}% <span className="text-[10px] text-purple-500 font-bold ml-1">({count})</span>
+                    </span>
+                  </div>
+                  
+                  {mode.toLowerCase().includes("show") && optVotes.length > 0 && (
+                    <div className="text-[9px] text-purple-400/70 mt-1 font-semibold leading-normal break-words border-t border-purple-950/10 pt-1 w-full z-10">
+                      Voters: {optVotes.join(", ")}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          
+          <div className="flex justify-between items-center text-[10px] text-purple-400/60 font-bold border-t border-purple-950/20 pt-2.5">
+            <span>Total votes: {totalVotes}</span>
+            {userVotedOptionIndex !== -1 && (
+              <span className="text-purple-400 flex items-center gap-1">
+                <Check className="w-3 h-3" /> You voted
+              </span>
+            )}
+          </div>
+        </div>
+      );
+    } catch (err) {
+      console.error("Poll parse error:", err);
+      return <p className="text-xs text-red-400 font-bold">Failed to render Room Poll.</p>;
+    }
+  };
+
+  const renderGift = (msg: Message) => {
+    try {
+      const jsonStr = msg.text.replace('[GIFT]:', '').trim();
+      const gift = JSON.parse(jsonStr);
+      
+      const hiddenMsg = gift.message || "";
+      const boxStyle = gift.boxStyle || "Classic";
+      const viewers = gift.viewers || [];
+      
+      const styleConf = getGiftStyleConfig(boxStyle);
+      const isViewer = viewers.includes(user.username);
+      const viewCount = viewers.length;
+
+      const handleOpenGift = async () => {
+        if (isViewer) return;
+        
+        const updatedViewers = [...viewers, user.username];
+        const updatedGift = { ...gift, viewers: updatedViewers };
+        const updatedText = `[GIFT]:${JSON.stringify(updatedGift)}`;
+        
+        playNotifySound();
+
+        setMessages(prev => prev.map(m => {
+          if (m.id === msg.id) {
+            return { ...m, text: updatedText };
+          }
+          return m;
+        }));
+        
+        await supabase
+          .from('messages')
+          .update({ text: updatedText })
+          .eq('id', msg.id);
+      };
+
+      return (
+        <div 
+          onClick={handleOpenGift}
+          className={`mt-2 bg-gradient-to-br ${styleConf.cardBg} border rounded-2xl p-4 max-w-sm w-full shadow-2xl transition-all duration-300 ${
+            !isViewer ? "cursor-pointer hover:scale-[1.02] active:scale-[0.98]" : ""
+          } flex flex-col items-center gap-3.5 select-none text-white`}
+        >
+          {!isViewer ? (
+            <div className="flex flex-col items-center py-4 space-y-3.5 w-full">
+              <div className="relative flex items-center justify-center">
+                <div className="absolute w-12 h-12 bg-white/5 rounded-full blur-xl animate-pulse" />
+                <span className="text-5xl drop-shadow-lg transform hover:scale-115 transition-transform duration-200">
+                  {styleConf.accentEmoji}
+                </span>
+              </div>
+              
+              <div className="text-center">
+                <p className="text-xs font-black tracking-widest text-white uppercase">
+                  {boxStyle} Gift Box
+                </p>
+                <p className="text-[10px] text-purple-200/80 font-bold mt-1">
+                  Click to unwrap & read the hidden message!
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="w-full flex flex-col items-center py-2 space-y-3">
+              <div className="flex items-center gap-2 text-xs font-black uppercase text-purple-300">
+                <span>🔓 Revealed Gift Box ({boxStyle})</span>
+              </div>
+              
+              <div className="w-full p-3 bg-black/40 border border-white/5 rounded-xl text-center shadow-inner">
+                <p className="text-xs sm:text-sm font-extrabold text-white break-words leading-relaxed animate-in fade-in duration-300">
+                  {hiddenMsg}
+                </p>
+              </div>
+            </div>
+          )}
+          
+          <div className="w-full flex justify-between items-center text-[10px] text-purple-300/60 font-black border-t border-white/5 pt-2">
+            <span className="flex items-center gap-1 uppercase tracking-wide">
+              👁️ Seen by {viewCount} {viewCount === 1 ? "person" : "people"}
+            </span>
+            {viewCount > 0 && (
+              <span className="text-[9px] font-semibold text-purple-400/50 hover:text-purple-300/80 transition-colors" title={viewers.join(", ")}>
+                Who seen?
+              </span>
+            )}
+          </div>
+        </div>
+      );
+    } catch (err) {
+      console.error("Gift parse error:", err);
+      return <p className="text-xs text-red-400 font-bold">Failed to render Gift Box.</p>;
+    }
+  };
+
+  const renderGamble = (msg: Message) => {
+    try {
+      const jsonStr = msg.text.replace('[GAMBLE]:', '').trim();
+      const gamble = JSON.parse(jsonStr);
+
+      const command = gamble.command || "/allin";
+      const currency = gamble.currency || "gold";
+      const bet = gamble.bet || 0;
+      const roll = gamble.roll;
+      const won = gamble.won;
+      const payout = gamble.payout || 0;
+      const multiplier = gamble.multiplier || 0;
+
+      const isGold = currency.toLowerCase() === "gold";
+      const currencyIcon = isGold ? (
+        <Coins className="w-4 h-4 text-amber-400 shrink-0" />
+      ) : (
+        <Sparkles className="w-4 h-4 text-pink-400 shrink-0 animate-pulse" />
+      );
+
+      const borderClass = won
+        ? "border-emerald-500/40 bg-gradient-to-br from-emerald-950/40 to-teal-950/60 shadow-[0_0_15px_rgba(16,185,129,0.15)]"
+        : "border-rose-500/40 bg-gradient-to-br from-rose-950/40 to-red-950/60 shadow-[0_0_15px_rgba(244,63,94,0.15)]";
+
+      const titleColor = won ? "text-emerald-400" : "text-rose-400";
+      const badgeBg = won ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300";
+
+      return (
+        <div className={`mt-2 border rounded-2xl p-4 max-w-sm w-full shadow-2xl transition-all duration-300 ${borderClass} text-white space-y-3`}>
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-white/5 pb-2">
+            <span className="text-[10px] font-black uppercase tracking-wider bg-black/40 px-2.5 py-1 rounded-md text-purple-300 border border-purple-500/15">
+              🎰 Casino Roll
+            </span>
+            <span className="text-xs font-mono font-bold text-purple-400/80">
+              {command}
+            </span>
+          </div>
+
+          {/* Details */}
+          <div className="space-y-2">
+            {/* Bet amount */}
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-extrabold text-purple-300 uppercase tracking-wide">BET:</span>
+              <div className="flex items-center gap-1.5 font-black">
+                <span className="font-mono">{bet.toLocaleString()}</span>
+                {currencyIcon}
+                <span className="text-[10px] text-purple-400 font-bold uppercase">({currency})</span>
+              </div>
+            </div>
+
+            {/* Optional dice roll display */}
+            {roll !== undefined && (
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-extrabold text-purple-300 uppercase tracking-wide">DICE ROLL:</span>
+                <span className="font-black text-white font-mono text-sm bg-black/30 border border-white/5 px-2.5 py-0.5 rounded-lg flex items-center gap-1">
+                  🎲 {roll} {roll === 6 ? <span className="text-emerald-400 text-xs font-black">(Winner!)</span> : <span className="text-rose-400 text-xs font-black">(No Match)</span>}
+                </span>
+              </div>
+            )}
+
+            {/* Status */}
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-extrabold text-purple-300 uppercase tracking-wide">WON/LOST:</span>
+              <span className={`font-black uppercase text-xs px-2 py-0.5 rounded-md ${badgeBg}`}>
+                {won ? "🎉 WON" : "💀 LOST"}
+              </span>
+            </div>
+
+            {/* Amount won/lost */}
+            <div className="flex justify-between items-center text-xs border-t border-white/5 pt-2">
+              <span className="font-extrabold text-purple-300 uppercase tracking-wide">
+                {won ? "WON:" : "LOST:"}
+              </span>
+              <div className={`flex items-center gap-1.5 font-black text-sm ${titleColor}`}>
+                <span className="font-mono">
+                  {won ? `+${(payout - bet).toLocaleString()}` : `-${bet.toLocaleString()}`}
+                </span>
+                {currencyIcon}
+              </div>
+            </div>
+
+            {/* Multiplier */}
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-extrabold text-purple-300 uppercase tracking-wide">MULTIPLIER:</span>
+              <span className={`font-black text-sm font-mono ${won ? "text-amber-300 animate-pulse" : "text-gray-500"}`}>
+                {won ? `x${multiplier.toFixed(1)}` : "x0.0"}
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    } catch (err) {
+      console.error("Gamble parse error:", err);
+      return <p className="text-xs text-red-400 font-bold">Failed to render Gambling receipt.</p>;
+    }
   };
 
   const toggleHideMessage = (msgId: string) => {
@@ -1509,8 +2136,39 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
                         </button>
                         
                         <div className="px-3 py-2.5 space-y-3">
-                          
-                          
+                          {/* Coins / Gold */}
+                          <div className="bg-black/30 border border-purple-950/40 p-2 rounded-lg flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Coins className="w-4 h-4 text-amber-400" />
+                              <span className="text-xs text-purple-200">Gold Coins</span>
+                            </div>
+                            <span className="text-xs font-black text-amber-400 font-mono">
+                              {(user.coins ?? 1000).toLocaleString()}
+                            </span>
+                          </div>
+
+                          {/* Rubies */}
+                          <div className="bg-black/30 border border-purple-950/40 p-2 rounded-lg flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Sparkles className="w-4 h-4 text-pink-400 animate-pulse" />
+                              <span className="text-xs text-purple-200">Rubies</span>
+                            </div>
+                            <span className="text-xs font-black text-pink-400 font-mono">
+                              {(user.rubies ?? 10).toLocaleString()}
+                            </span>
+                          </div>
+
+                          {/* Convert Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsProfileMenuOpen(false);
+                              setShowConvertModal(true);
+                            }}
+                            className="w-full py-2 px-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-[10px] uppercase tracking-wider rounded-lg transition-all shadow-md flex items-center justify-center gap-1.5 active:scale-[0.98] cursor-pointer"
+                          >
+                            🔄 Exchange Currency
+                          </button>
                         </div>
                       </>
                     )}
@@ -1705,7 +2363,13 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
                               </span>
                               <span className="text-[10px] text-purple-500 font-medium ml-1 shrink-0">{msg.time}</span>
                             </div>
-                            {msg.text && (
+                            {msg.text?.startsWith('[POLL]:') ? (
+                              renderPoll(msg)
+                            ) : msg.text?.startsWith('[GIFT]:') ? (
+                              renderGift(msg)
+                            ) : msg.text?.startsWith('[GAMBLE]:') ? (
+                              renderGamble(msg)
+                            ) : msg.text && (
                               <p 
                                 className={`text-sm text-purple-100 whitespace-pre-wrap break-words leading-relaxed ${getStyleClasses(getMessageStyle(msg, 'message').effect, getMessageStyle(msg, 'message').format)}`}
                                 style={getStyleInline(getMessageStyle(msg, 'message').color, getMessageStyle(msg, 'message').font, getMessageStyle(msg, 'message').effect)}
@@ -1907,6 +2571,38 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
                         <span className="text-[9px] text-amber-400">Buy Borders & Effects</span>
                       </div>
                     </button>
+
+                    {/* Poll option */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPollModal(true);
+                        setShowPlusOptions(false);
+                      }}
+                      className="flex items-center gap-2.5 px-2 py-1.5 bg-purple-950/30 hover:bg-purple-950/50 border border-purple-900/40 rounded-lg text-left text-xs text-purple-200 hover:text-white transition-all cursor-pointer group mt-1"
+                    >
+                      <Vote className="w-4 h-4 text-sky-400 group-hover:scale-110 transition-transform shrink-0" />
+                      <div className="flex flex-col">
+                        <span className="font-bold">Room Poll</span>
+                        <span className="text-[9px] text-purple-400">Create interactive poll</span>
+                      </div>
+                    </button>
+
+                    {/* Gift option */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowGiftModal(true);
+                        setShowPlusOptions(false);
+                      }}
+                      className="flex items-center gap-2.5 px-2 py-1.5 bg-purple-950/30 hover:bg-purple-950/50 border border-purple-900/40 rounded-lg text-left text-xs text-purple-200 hover:text-white transition-all cursor-pointer group mt-1"
+                    >
+                      <Gift className="w-4 h-4 text-pink-400 group-hover:scale-110 transition-transform shrink-0" />
+                      <div className="flex flex-col">
+                        <span className="font-bold">Gift Box</span>
+                        <span className="text-[9px] text-purple-400">Wrap a message (5 Rubies)</span>
+                      </div>
+                    </button>
                   </div>
                 )}
                 {isEmojiPickerOpen && (
@@ -1918,13 +2614,71 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
                     ))}
                   </div>
                 )}
+                {inputText.startsWith('/') && (() => {
+                  const currentTypedWord = inputText.split(' ')[0].toLowerCase();
+                  const knownCommandsList = [
+                    { cmd: '/commands', desc: 'Show available commands list', badge: 'Help' },
+                    { cmd: '/clear', desc: 'Clear all messages globally', badge: 'Founder+' },
+                    { cmd: '/rank', desc: 'View your rank & balance details', badge: 'Info' },
+                    { cmd: '/allin', desc: 'Bet all your Gold or Rubies', badge: 'Gamble' },
+                    { cmd: '/dice', desc: 'Roll a 1-6 dice to win multiplier', badge: 'Gamble' }
+                  ];
+                  const matchingCommands = knownCommandsList.filter(c => c.cmd.startsWith(currentTypedWord));
+                  if (matchingCommands.length === 0) return null;
+
+                  return (
+                    <div className="absolute bottom-full left-4 right-4 mb-2 p-2 bg-[#161226]/95 border border-purple-500/40 rounded-xl shadow-2xl animate-in slide-in-from-bottom-2 duration-150 z-50 max-w-4xl mx-auto space-y-1">
+                      <div className="text-[10px] text-purple-400 font-bold uppercase tracking-wider px-2 py-1 border-b border-white/5 mb-1 flex items-center justify-between">
+                        <span>Command Suggestions</span>
+                        <span className="text-[9px] text-purple-500 normal-case">Click to auto-fill</span>
+                      </div>
+                      <div className="max-h-48 overflow-y-auto space-y-0.5 animate-in fade-in duration-200">
+                        {matchingCommands.map((c) => {
+                          const userPriority = allRanksInfo[user.rank]?.priority ?? 14;
+                          const isFounderOrAbove = userPriority <= 2;
+                          const isDisabled = c.cmd === '/clear' && !isFounderOrAbove;
+                          return (
+                            <button
+                              key={c.cmd}
+                              type="button"
+                              onClick={() => {
+                                if (isDisabled) return;
+                                setInputText(c.cmd + " ");
+                                inputRef.current?.focus();
+                              }}
+                              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-all ${
+                                isDisabled
+                                  ? "opacity-40 cursor-not-allowed"
+                                  : "hover:bg-purple-950/50 cursor-pointer active:scale-[0.99]"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-black text-purple-200">{c.cmd}</span>
+                                <span className="text-xs text-purple-400/80">{c.desc}</span>
+                              </div>
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
+                                c.cmd === '/clear'
+                                  ? isFounderOrAbove
+                                    ? "bg-amber-500/20 text-amber-300 animate-pulse"
+                                    : "bg-red-500/20 text-red-300"
+                                  : "bg-purple-500/20 text-purple-300"
+                              }`}>
+                                {c.badge}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
                 <div className="max-w-4xl mx-auto flex items-center bg-[#131024] border border-purple-950/50 rounded-full px-4 py-1.5 shadow-2xl focus-within:border-purple-600/60 transition-all duration-200">
                   <div className="flex items-center gap-1 sm:gap-2 text-purple-400 shrink-0 pr-2">
                     <button
                       type="button"
                       onClick={() => setShowPlusOptions(!showPlusOptions)}
                       className={`p-1.5 rounded-full transition-colors cursor-pointer ${showPlusOptions ? "bg-purple-900/40 text-white" : "hover:bg-purple-950/40 hover:text-white"}`}
-                      title="Add Media / Open Apps"
+                      title="Options"
                     >
                       <Plus className="w-4 h-4" />
                     </button>
@@ -2894,16 +3648,10 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
             // Trigger standard message send with the painting URL as image
             try {
               const { error } = await supabase.from("messages").insert({
-                user_id: user.id,
-                username: user.username,
-                pfp: user.pfp,
-                rank: user.rank,
-                custom_status: user.custom_status,
+                profile_id: user.id,
                 text: "🎨 shared a canvas painting!",
                 image_url: imageUrl,
-                sound_url: null,
-                is_system: false,
-                is_staff_only: false
+                room: 'main'
               });
               if (error) throw error;
             } catch (err) {
@@ -2989,6 +3737,63 @@ export default function ChatRoom({ user, onLogout, onUpdateUser }: ChatRoomProps
             setShowProfileDecorModal(false);
             setProfileTarget(user);
             setProfileMode("view");
+          }}
+        />
+      )}
+
+      {showPollModal && (
+        <PollModal
+          user={user}
+          onClose={() => setShowPollModal(false)}
+          onSend={async (pollData) => {
+            try {
+              const serialized = `[POLL]:${JSON.stringify({
+                question: pollData.question,
+                mode: pollData.mode,
+                duration: pollData.duration,
+                options: pollData.options,
+                votes: {},
+              })}`;
+
+              const { error } = await supabase.from("messages").insert({
+                profile_id: user.id,
+                text: serialized,
+                room: 'main'
+              });
+
+              if (error) throw error;
+            } catch (err) {
+              console.error("Failed to create room poll:", err);
+            }
+          }}
+        />
+      )}
+
+      {showGiftModal && (
+        <GiftModal
+          user={user}
+          onClose={() => setShowGiftModal(false)}
+          onSend={async (giftMessage, boxStyle) => {
+            try {
+              await onUpdateUser({ rubies: (user.rubies ?? 0) - 5 });
+
+              const serialized = `[GIFT]:${JSON.stringify({
+                message: giftMessage,
+                boxStyle: boxStyle,
+                viewers: [],
+                senderId: user.id
+              })}`;
+
+              const { error } = await supabase.from("messages").insert({
+                profile_id: user.id,
+                text: serialized,
+                room: 'main'
+              });
+
+              if (error) throw error;
+            } catch (err) {
+              console.error("Failed to send gift box:", err);
+            }
           }}
         />
       )}
